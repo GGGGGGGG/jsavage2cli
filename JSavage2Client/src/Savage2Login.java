@@ -26,7 +26,7 @@ public class Savage2Login {
 	final static int OPHELIA_EU1_PORT = 11236;
 
 	final static String OPHELIA_EU3_HOST = "188.40.72.24";
-	final static int OPHELIA_EU3_PORT = 11237;
+	final static int OPHELIA_EU3_PORT = 11236;
 
 	final static String MGF_GAMING_HOST = "78.46.21.137";
 	final static int MGF_GAMING_PORT = 11235;
@@ -38,8 +38,8 @@ public class Savage2Login {
 	final static int NA_EAST_PORT = 11239;
 
 	static DatagramSocket gameServerClientSocket = null;
-	final static String GAME_SERVER_HOSTNAME = US_WEST1_HOST;
-	final static int GAME_SERVER_PORT =  13235;
+	final static String GAME_SERVER_HOSTNAME = OPHELIA_EU3_HOST;//"127.0.0.1";//US_WEST1_HOST;
+	final static int GAME_SERVER_PORT =  11236;
 	
 	final static String BOTMASTER = null; //nickname of user controlling the client
 
@@ -764,7 +764,7 @@ public class Savage2Login {
 						//System.out.println("Printing received bytes " + receivePacket.getLength());
 						//Utility.dumpBytes(receiveData,
 						//		receivePacket.getLength());
-						if (printRecv || true) {
+						if (printRecv) {
 							System.out
 							.println("Received response from game server...");
 							System.out.print("FROM SERVER: ");
@@ -906,11 +906,15 @@ public class Savage2Login {
 		}
 		
 		System.out.println("Entering test packet request loop...");
+		int movement = 1;
 		while (true) {
 			// test packet - fuzzed
 			//System.out.println("Sending test packet request...");
-			sendData = Savage2GameServer.getTestPacket(clientID,
-					++testAction);
+			//sendData = Savage2GameServer.getTestPacket(clientID,
+			//		++testAction);
+			testAction = Savage2GameServer.MOVE_FORWARD * 2;
+			sendData = Savage2GameServer.getActionPacket(clientID, testAction, movement);
+			movement += 0x7F;
 			// System.out.println("testAction=" + testAction);
 			sendPacket = new DatagramPacket(sendData, sendData.length,
 					IPAddress, port);
@@ -1142,7 +1146,7 @@ public class Savage2Login {
 	boolean waitingFor5bPkt = false;
 
 	boolean joinTeam = false;
-	
+	boolean characterSelected = false;
 	void handlePacket(byte[] recvData, int recvDataLen) {
 		InetAddress IPAddress;
 		try {
@@ -1150,6 +1154,22 @@ public class Savage2Login {
 			byte[] sendData = new byte[1024];
 			DatagramPacket sendPacket;
 			int port = GAME_SERVER_PORT;
+			
+
+			if(characterSelected && Savage2GameServer.parseAllChatCamrose(recvData, recvDataLen)) {
+				// spawn test
+				short spawnID = Savage2GameServer.getPortalId() ;//Savage2GameServer.getStrongholdID();
+				System.out.println("Sending spawn at " + String.format("%04X", spawnID)
+						+ " request...");
+				sendData = Savage2GameServer.getSpawnMainCommand(clientID,
+						spawnID);
+				sendPacket = new DatagramPacket(sendData, sendData.length,
+						IPAddress, port);
+				sendReliablePacket(sendPacket);
+				
+				hasSpawned.set(true);
+			}
+			
 			// see if data contains stronghold/lair id
 			if (!hasMainID) {
 				System.out
@@ -1171,8 +1191,8 @@ public class Savage2Login {
 			if (readyToSpawn && hasMainID && !hasSpawned.get()) {
 				joinTeam = true;
 			}
-			
-			if (readyToSpawn && hasMainID && !hasSpawned.get()) {
+			Savage2GameServer.parse602101(recvData, recvDataLen);
+			if (readyToSpawn && hasMainID && !characterSelected && !hasSpawned.get()) {
 				short iSpawn = Savage2GameServer.getStrongholdID();//0x18A2;
 				iSpawn += 0;
 
@@ -1196,15 +1216,15 @@ public class Savage2Login {
 				sendPacket = new DatagramPacket(sendData, sendData.length,
 						IPAddress, port);
 				sendReliablePacket(sendPacket);
-
+/*
 				// join squad 1 test
 				System.out.println("Sending join squad request...");
-				sendData = Savage2GameServer.getJoinSquad(clientID, 1);
+				sendData = Savage2GameServer.getJoinSquad(clientID, 0);
 				sendPacket = new DatagramPacket(sendData, sendData.length,
 						IPAddress, port);
 				sendReliablePacket(sendPacket);
-
 /*
+
 				sendData = Savage2GameServer.getJoinSquad(clientID, 2);
 				sendPacket = new DatagramPacket(sendData, sendData.length,
 						IPAddress, port);
@@ -1223,12 +1243,12 @@ public class Savage2Login {
 				// select character
 				System.out.println("Sending select character request...");
 				sendData = Savage2GameServer.getCharacterSelect(clientID,
-						Savage2GameServer.SHAPESHIFTER);
+						Savage2GameServer.SAVAGE);
 				sendPacket = new DatagramPacket(sendData, sendData.length,
 						IPAddress, port);
 				sendReliablePacket(sendPacket);
-				//gameServerClientSocket.send(sendPacket);
-				//Savage2GameServer.next();
+				
+				characterSelected = true;
 /*
 				// after character select
 				System.out.println("Sending after select character request...");
@@ -1240,17 +1260,8 @@ public class Savage2Login {
 				//gameServerClientSocket.send(sendPacket);
 				//Savage2GameServer.next();
 */
-				// spawn main test
-				short mainID = Savage2GameServer.getLairID();
-				System.out.println("Sending spawn main at " + mainID
-						+ " request...");
-				sendData = Savage2GameServer.getSpawnMainCommand(clientID,
-						mainID);
-				sendPacket = new DatagramPacket(sendData, sendData.length,
-						IPAddress, port);
-				sendReliablePacket(sendPacket);
-				//gameServerClientSocket.send(sendPacket);
-				//Savage2GameServer.next();
+
+
 				/*
 				//allchat
 				sendData = Savage2GameServer.getAllChatMessageCommand(String.format("%04X", i), clientID); 
@@ -1276,9 +1287,21 @@ public class Savage2Login {
 				System.exit(0);
 				*/
 				
-				hasSpawned.set(true);
+
 			}
 
+			
+			// just to keep the 5b packets coming - experimental
+			//sendData = Savage2GameServer.getActionPacket(clientID,
+			//		(byte)0);
+			sendData = Savage2GameServer.getTestPacket(clientID,
+					(byte)0);
+			
+			sendPacket = new DatagramPacket(sendData, sendData.length,
+					IPAddress, port);
+			gameServerClientSocket.send(sendPacket);
+			
+			
 			// check if received login expired error packet
 			byte[] magic = { (byte) 0x9A, (byte) 0xDE, (byte) 0x97, (byte) 0xF1 };
 			byte gamMagic = 1;

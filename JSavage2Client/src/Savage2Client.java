@@ -13,7 +13,7 @@ public class Savage2Client {
 	}
 	
 	public static void foo() {
-		String str = "0B B9 5B 46 F0 57 A5 45 45 7A 64 44";
+		String str = "DF C9 17 46 22 C6 B3 46 06 89 94 41";
 		float x,y,z;
 		ByteBuffer bb = ByteBuffer.allocate(4);
 		bb.order(ByteOrder.LITTLE_ENDIAN);
@@ -44,7 +44,7 @@ public class Savage2Client {
 		z = bb.getFloat(0);
 		bb.rewind();
 		
-		System.out.println("bindimpulse game P Cmd \"setposition 7050 " 
+		System.out.println("bindimpulse game P Cmd \"setposition 614 " 
 		+ x + " " + y + " " + z + "\"");
 	}
 

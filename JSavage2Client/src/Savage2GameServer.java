@@ -942,7 +942,74 @@ public class Savage2GameServer {
 	}
 
 	
-	public static byte[] getActionPacket(byte[] unknown2bytes, byte action) {
+	
+	public static byte[] getActionPacket(byte[] clientid, byte userAction, int movement) {
+		byte moveDistWhenHit = (byte)100;
+		byte ability = 0;
+		byte affectsHitDist2 = 0;
+		byte dodge = (byte)(0);
+		int movement2 = movement + 0x7F;
+		byte[] b = { (byte) 0x9A, (byte) 0xDE, (byte) 0x97, (byte) 0xF1,
+				01,
+				00,
+				00,
+
+				(byte) 0xC7, // marker
+				(byte) testPacketCounter,
+				(byte) (testPacketCounter >> 8),
+				(byte) (testPacketCounter >> 16),
+				(byte) (testPacketCounter >> 24),
+				(byte) movement,
+				(byte) (movement >> 8), 
+				(byte) (movement >> 16), 
+				(byte) (movement >> 24),  
+				ability, userAction,
+				affectsHitDist2, dodge, (byte) 0xFF, 05,
+				0x38,
+				(byte)0x5D,
+				(byte)0x96,
+				(byte)0xBF,
+
+				(byte)0xC9,
+				(byte)0xC1,
+				orientation,//(byte) (testByte), // 0xA6 <-- this determines
+									// orientation/direction of movement
+				(byte) (0x43), // 0x43 //0x77,0x70,0x68,0x64,0x63,0x62 no spawn
+				
+				(byte) 0xC7, // marker
+				(byte) testPacketCounter,
+				(byte) (testPacketCounter >> 8),
+				(byte) (testPacketCounter >> 16),
+				(byte) (testPacketCounter >> 24),
+				(byte) movement2,
+				(byte) (movement2 >> 8), 
+				(byte) (movement2 >> 16), 
+				(byte) (movement2 >> 24), 
+				ability, userAction,
+				affectsHitDist2, dodge, (byte) 0xFF, 05,
+				0x38,
+				(byte)0x5D,
+				(byte)0x96,
+				(byte)0xBF,
+
+				(byte)0xC9,
+				(byte)0xC1,
+				orientation,//(byte) (testByte), // 0xA6 <-- this determines
+									// orientation/direction of movement
+				(byte) (0x43), // 0x43 //0x77,0x70,0x68,0x64,0x63,0x62 no spawn
+		};
+		++testPacketCounter;
+		return b;
+	}
+	
+	
+	
+	
+	
+	
+	
+	
+	public static byte[] getActionPacket1(byte[] unknown2bytes, byte action) {
 		byte moveDistWhenHit = 100; // nope
 		byte animSwitchHammer = (byte) 0xFF; // nope
 		byte affectsHitDist2 = 15; // no sentry bat
@@ -1642,7 +1709,60 @@ contentLen apparently always 3 bytes extra (1 byte short) of being divisible by 
 		//parse0x026F(content, len); // fail - prints own location apparently
 		//parse0x01D0(content, len); // fail - not found/hardly found
 		parseDirty(content, len);
+		
+		// spawn portal stuff
+		parsePortalMarker(content, len);
+		parsePortalId(content, len);
 	}
+	
+	// 86 00 00 00 03 B4 4A 60 21 01 4D 0F 00 00
+	public static void parse602101(byte[] b, int bLen) {
+		if(bLen != 14) return;
+		if(b[4] != 3 || b[7] != 0x60 || b[8] != 0x21 || b[9] != 1) return;
+		short n = Utility.getShort(b, 10);
+		System.out.println("parse602101(): " + n);
+		System.exit(1);
+	}
+	
+	
+	static int portalmarker;
+	static boolean portalmarkerfound = false;
+	public static void parsePortalMarker(byte[] b, int bLen) {
+		//System.out.println("Checking for portal marker in content of length " + String.format("%04X", bLen));
+		//Utility.dumpBytes(b, bLen);
+		byte[] markermagic = {05, 0x2C, 01, 01, 02, 0x33, 
+				0x33, (byte)0xD3, 0x40, 01, 00};
+		int p = 0;
+		while(p + markermagic.length + 4 <= bLen) {
+			int i;
+			for(i = p; i < p + markermagic.length; ++i)
+				if(b[i] != markermagic[i - p])
+					break;
+			if(i != p + markermagic.length) {
+				++p;
+			} else {
+				// found marker magic...fetch portal id marker value
+				System.out.println("<<<<<<<FOUND PORTAL MARKER >>>>>>>>>>>>>>>>>>>>>>>>");
+				portalmarker = Utility.getInt(b, i);
+				portalmarkerfound = true;
+				return;
+			}
+		}
+	}
+	
+	static short portalId = 0;
+	public static void parsePortalId(byte[] b, int bLen) {
+		if(!portalmarkerfound) return;
+		int val = Utility.getInt(b, 8);
+		if(val != portalmarker) return;
+		portalId = (short) (Utility.getShort(b, bLen - 11) / 2);
+		System.out.println("<<<< PORTAL ID >>>>> " + String.format("%04X", portalId));
+	}
+	
+	public static short getPortalId() {
+		return portalId;
+	}
+	
 	
 	public static void lookTowardsXY(float xCoord, float yCoord) {
 		float dY = yCoord - initialY;
@@ -1677,7 +1797,13 @@ contentLen apparently always 3 bytes extra (1 byte short) of being divisible by 
 	}
 	
 	
-	
+	public static boolean parseAllChatCamrose(byte[] b, int bLen) {
+		if(bLen < 13) return false;
+		if(b[4] != 3 || b[7] != 0x60 || b[8] != 3) return false;
+		String str = new String(b, 13, 7);
+		if(str.contentEquals("camrose")) return true;
+		return false;
+	}
 	
 	/*
 	 * v74 [.........]....[...]..........[ human ]....[.........] 0B 00 00 00 03

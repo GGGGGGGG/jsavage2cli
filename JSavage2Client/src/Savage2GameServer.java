@@ -933,6 +933,7 @@ public class Savage2GameServer {
 		byte affectsHitDist2 = 0;
 		byte dodge = (byte)(0);
 		int movement2 = movement + 0x7F;
+		movement = 0x00100000; // camrose moving backwairds orientation working?
 		byte[] b = { (byte) 0x9A, (byte) 0xDE, (byte) 0x97, (byte) 0xF1,
 				01,
 				00,
@@ -959,7 +960,7 @@ public class Savage2GameServer {
 				orientation,//(byte) (testByte), // 0xA6 <-- this determines
 									// orientation/direction of movement
 				(byte) (0x43), // 0x43 //0x77,0x70,0x68,0x64,0x63,0x62 no spawn
-				
+/*				
 				(byte) 0xC7, // marker
 				(byte) testPacketCounter,
 				(byte) (testPacketCounter >> 8),
@@ -981,7 +982,10 @@ public class Savage2GameServer {
 				orientation,//(byte) (testByte), // 0xA6 <-- this determines
 									// orientation/direction of movement
 				(byte) (0x43), // 0x43 //0x77,0x70,0x68,0x64,0x63,0x62 no spawn
+				*/
 		};
+		b[5] = clientid[0];
+		b[6] = clientid[1];
 		++testPacketCounter;
 		return b;
 	}
@@ -1178,11 +1182,7 @@ contentLen apparently always 3 bytes extra (1 byte short) of being divisible by 
 		// NOTE: length bytes are excluded from length value
 		ByteBuffer bb = ByteBuffer.allocate(4);
 		bb.order(ByteOrder.LITTLE_ENDIAN);
-		bb.put(b[8]);
-		bb.put(b[9]);
-		bb.put(b[10]);
-		bb.put(b[11]);
-		int len = bb.getInt(0);
+		int len = Utility.getInt(b, 8);
 		if(len < 4) return true;
 		byte[] content = new byte[len];
 		for(i = 12; i < bLen; ++i)
@@ -1193,18 +1193,8 @@ contentLen apparently always 3 bytes extra (1 byte short) of being divisible by 
 		//Utility.dumpBytes(b,  bLen);
 		if(bLen < 54) return true;//for now - proper parsing shouldnt require this
 		// get next test packet counter
-		bb.rewind();
-		bb.put(b[12]);
-		bb.put(b[13]);
-		bb.put(b[14]);
-		bb.put(b[15]);
-		testPacketCounter = bb.getInt(0);
-		bb.rewind();
-		bb.put(b[16]);
-		bb.put(b[17]);
-		bb.put(b[18]);
-		bb.put(b[19]);
-		pingPacketCounter = bb.getInt(0) - 0x1b;
+		testPacketCounter = Utility.getInt(b, 16);//Utility.getInt(b, 12);
+		pingPacketCounter = Utility.getInt(b, 16) - 0x1b;
 		// 20-23 dunno
 		// 24-27 dunno
 		

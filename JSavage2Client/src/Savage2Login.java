@@ -492,21 +492,21 @@ public abstract class Savage2Login {
 			byte[] sendData = new byte[1024];
 			DatagramPacket sendPacket;
 			int port = GAME_SERVER_PORT;
-/*
+
 			// setup client tick thread
 			(new Thread(new Runnable() {
 				public void run() {
 					onClientTick();
 					try {
-						Thread.sleep(30);
+						Thread.sleep(75);
 					} catch (InterruptedException e) {
 						// TODO Auto-generated catch block
 						e.printStackTrace();
 					}
 				}
 			})).start();
-*/
-			onClientTick();
+
+			//onClientTick();
 			
 			Savage2GameServer.AllChatMessage acm = Savage2GameServer.parseAllChat(recvData, recvDataLen);
 			if(acm != null)
@@ -538,9 +538,6 @@ public abstract class Savage2Login {
 				currentState.set(State.INSPEC);
 				onStateChange(State.INSPEC);
 			}
-
-			// just to keep the 5b packets coming - experimental
-			sendAction((byte)0, (byte)0);
 			
 			// check if received login expired error packet
 			byte[] magic = { (byte) 0x9A, (byte) 0xDE, (byte) 0x97, (byte) 0xF1 };

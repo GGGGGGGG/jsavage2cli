@@ -159,18 +159,19 @@ public class Savage2Client extends Savage2Login {
 
 	
 	short[] actionList = {
-			0x0101,0x0000,0x0101,0x0000
+			0x010,0x0101,0x0101,0x0101
 	};
 	int pActionList = 0;
 	
 	
-	int movement = 1;
 	byte testAction = 0;
 	boolean setupOnField = true;
 	@Override
 	public void onClientTick() {
 		State state = currentState.get();
 		if(state != State.ONFIELD) {
+			// just to keep the 5b packets coming - experimental
+			sendAction((byte)0, (byte)0);
 			if (state == State.SPAWNSCREEN) {
 				/*
 				// spawn test
@@ -193,17 +194,12 @@ public class Savage2Client extends Savage2Login {
 				// Savage2GameServer.setOrientationByte("0xB0");
 				Savage2GameServer
 						.setTestPacketCounter(Savage2GameServer.pkt5dval1 + 0x600);
-				// vc
-				for (int i = 0; i < 1; ++i) {
-					sendVCCommand(111);
-				}
 				System.out.println("Entering test packet request loop...");
 				setupOnField = false;
 			}
 			testAction = Savage2GameServer.MOVE_FORWARD * 2;
-			movement += 0x7F;
-			byte ability = (byte)actionList[pActionList];
-			byte action = (byte)(actionList[pActionList] >> 8);
+			byte action = (byte)8*2;//(byte)(pActionList % 2);//(byte)actionList[pActionList];
+			byte ability = 0;//(byte)(actionList[pActionList] >> 8);
 			pActionList = (pActionList + 1) % actionList.length;
 			sendAction(ability, action);
 		}
@@ -211,16 +207,16 @@ public class Savage2Client extends Savage2Login {
 	
 	@Override
 	public void onReceiveAllChat(int playerid, String msg) {
-		sendVCCommand(111);
 		System.out.println("Recevied allchatmessage: " + msg);
 		if(msg.contentEquals("camrose")) {
-			if (currentState.get() == State.SPAWNSCREEN) {
+			sendVCCommand(111);
+			//if (currentState.get() == State.SPAWNSCREEN) {
 				// spawn test
 				short spawnID = Savage2GameServer.getPortalId();
 				System.out.println("Sending spawn at "
 						+ String.format("%04X", spawnID) + " request...");
 				sendSpawnRequest(spawnID);
-			}
+			//}
 		}
 	}
 
@@ -230,6 +226,7 @@ public class Savage2Client extends Savage2Login {
 	}
 	
 	//portal spawn did not work on..
-	// moonlight
+	// moonlight ancientcities autumn bunker crossroads desolation duskwood eden hellpeak
+	// hiddenvillage kunlunpass losthills mirakar...havent test others
 
 }

@@ -217,22 +217,7 @@ public class Savage2GameServer {
 	}
 	
 
-	public static byte[] getSpawnMainCommand(byte[] unknown2bytes, short mainID) {
-		/*
-		 * 07 00 00 00 03 3C 66 C8 16 94 01 00 00 18 00 00 00 03 9E 95 C8 16 FB
-		 * 00 00 00 0D 00 00 00 03 A8 B7 C8 16 8D 03 00 00 //eden stronghold 13
-		 * 00 00 00 03 A8 B7 C8 16 96 04 00 00 //hellpeak stronghold 19 00 00 00
-		 * 03 A8 B7 C8 16 34 08 00 00 //hiddenvillage stronghold 1D 00 00 00 03
-		 * 02 D5 C8 16 E5 28 00 00 //hiddenvillage sh 08 00 00 00 03 EA CB C8 16
-		 * A6 36 00 00 //storm stronghold 0D 00 00 00 03 0A 7A C8 16 5D 16 00 00
-		 * //storm sh 08 00 00 00 03 3C D2 C8 16 CE 08 00 00 //kunlunpass
-		 * stronghold 18 00 00 00 03 3C D2 C8 16 54 0A 00 00 //desolation
-		 * stronghold 07 00 00 00 03 F2 1C C8 16 68 41 00 00 //ancientcities
-		 * stronghold 08 00 00 00 03 8C 9B C8 16 AE 0F 00 00 //mirakar
-		 * stronghold 0F 00 00 00 03 02 D5 C8 16 21 23 00 00 //duskwood sh 0C 00
-		 * 00 00 03 4E 6D C8 16 6F 66 00 00 //crossroads sh 11 00 00 00 03 4E 6D
-		 * C8 16 DA 67 00 00 //deadlock sh
-		 */
+	public static byte[] getSpawnCommand(byte[] clientid, short spawnID) {
 		byte[] b = new byte[13];
 		int k = 0;
 		b[k++] = (byte) msgCounter;
@@ -240,12 +225,12 @@ public class Savage2GameServer {
 		b[k++] = (byte) (msgCounter >> 16);
 		b[k++] = (byte) (msgCounter >> 24);
 		b[k++] = 3; // marker
-		b[k++] = unknown2bytes[0];
-		b[k++] = unknown2bytes[1];
+		b[k++] = clientid[0];
+		b[k++] = clientid[1];
 		b[k++] = (byte) 0xC8; // marker
 		b[k++] = 0x16;
-		b[k++] = (byte) mainID;
-		b[k++] = (byte) (mainID >> 8);
+		b[k++] = (byte) spawnID;
+		b[k++] = (byte) (spawnID >> 8);
 		b[k++] = 0;
 		b[k++] = 0;
 		return b;
@@ -943,9 +928,8 @@ public class Savage2GameServer {
 
 	
 	
-	public static byte[] getActionPacket(byte[] clientid, byte userAction, int movement) {
+	public static byte[] getActionPacket(byte[] clientid, byte ability, byte userAction, int movement) {
 		byte moveDistWhenHit = (byte)100;
-		byte ability = 0;
 		byte affectsHitDist2 = 0;
 		byte dodge = (byte)(0);
 		int movement2 = movement + 0x7F;
@@ -1692,10 +1676,10 @@ contentLen apparently always 3 bytes extra (1 byte short) of being divisible by 
 		x = Utility.getFloat(b, p);
 		y = Utility.getFloat(b, p + 4);
 		z = Utility.getFloat(b, p + 8);
-		System.out.println("parseDirty():");
-		System.out.println("x = " + x);
-		System.out.println("y = " + y);
-		System.out.println("z = " + z);	
+		//System.out.println("parseDirty():");
+		//System.out.println("x = " + x);
+		//System.out.println("y = " + y);
+		//System.out.println("z = " + z);	
 		lookTowardsXY(x, y);
 	}
 	
@@ -1796,6 +1780,19 @@ contentLen apparently always 3 bytes extra (1 byte short) of being divisible by 
 		return 0;
 	}
 	
+	class AllChatMessage {
+		AllChatMessage() {}
+		int playerid;
+		String msg;
+	}
+	public static AllChatMessage parseAllChat(byte[] b, int bLen) {
+		if(bLen < 13) return null;
+		if(b[4] != 3 || b[7] != 0x60 || b[8] != 3) return null;
+		AllChatMessage res = (new Savage2GameServer()).new AllChatMessage();
+		res.playerid = Utility.getInt(b,  9);
+		res.msg = new String(b, 13, bLen - 1 - 13);
+		return res;
+	}
 	
 	public static boolean parseAllChatCamrose(byte[] b, int bLen) {
 		if(bLen < 13) return false;

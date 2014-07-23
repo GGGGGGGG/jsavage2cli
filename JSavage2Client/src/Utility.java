@@ -143,4 +143,42 @@ public class Utility {
 		bb.put(b[i+3]);
 		return bb.getFloat(0);
 	}
+	
+	
+	
+	
+	public static void foo(String str) {
+		float x,y,z;
+		ByteBuffer bb = ByteBuffer.allocate(4);
+		bb.order(ByteOrder.LITTLE_ENDIAN);
+		str = str.replaceAll(" ", "");	
+		String xs = str.substring(0, 8);
+		String ys = str.substring(8, 16);
+		String zs = str.substring(16, 24);
+		
+		String q = xs;
+		for(int i = 0; i < 8; i+=2) {
+			int c = Integer.decode("0x" + q.substring(i, i+2));
+			bb.put( (byte)c );
+		}
+		x = bb.getFloat(0);
+		bb.rewind();
+		q = ys;
+		for(int i = 0; i < 8; i+=2) {
+			int c = Integer.decode("0x" + q.substring(i, i+2));
+			bb.put( (byte)c );
+		}
+		y = bb.getFloat(0);
+		bb.rewind();
+		q = zs;
+		for(int i = 0; i < 8; i+=2) {
+			int c = Integer.decode("0x" + q.substring(i, i+2));
+			bb.put( (byte)c );
+		}
+		z = bb.getFloat(0);
+		bb.rewind();
+		
+		System.out.println("bindimpulse game P Cmd \"setposition 614 " 
+		+ x + " " + y + " " + z + "\"");
+	}
 }

@@ -383,24 +383,7 @@ public abstract class Savage2Login {
 
 	SynchronizedBoolean hasSpawned = new SynchronizedBoolean();
 
-	public class SynchronizedInt {
-		private int c = 0;
-		boolean updated = false;
 
-		public synchronized void set(int val) {
-			c = val;
-			updated = true;
-		}
-
-		public synchronized int get() {
-			updated = false;
-			return c;
-		}
-
-		public synchronized boolean wasUpdated() {
-			return updated;
-		}
-	}
 
 	public class SynchronizedState {
 		private State c = State.INLOBBY;
@@ -485,6 +468,11 @@ public abstract class Savage2Login {
 	boolean joinTeam = false;
 	boolean characterSelected = false;
 
+	static byte ability = 0;
+	static byte action = 0;
+
+	boolean obtainedCmdC7Counter2 = false;
+
 	void handlePacket(byte[] recvData, int recvDataLen) {
 		InetAddress IPAddress;
 		try {
@@ -493,25 +481,39 @@ public abstract class Savage2Login {
 			DatagramPacket sendPacket;
 			int port = GAME_SERVER_PORT;
 
-			// setup client tick thread
-			(new Thread(new Runnable() {
-				public void run() {
-					onClientTick();
-					try {
-						Thread.sleep(75);
-					} catch (InterruptedException e) {
-						// TODO Auto-generated catch block
-						e.printStackTrace();
+			if (obtainedCmdC7Counter2) {
+				// setup client tick thread
+				(new Thread(new Runnable() {
+					public void run() {
+						long initTime = System.nanoTime();
+						while (true) {
+							
+							try {
+								Thread.sleep(50); //33// 75
+								// 47 = min time without exceeding bandwidth
+								// (tested
+								// on local)
+							} catch (InterruptedException e) {
+								// TODO Auto-generated catch block
+								e.printStackTrace();
+							}
+							//while((System.nanoTime() - initTime) % 50000000 != 0) {}
+							sendAction(ability, action);
+						}
 					}
-				}
-			})).start();
+				})).start();
+				obtainedCmdC7Counter2 = false;
+			}
 
-			//onClientTick();
-			
-			Savage2GameServer.AllChatMessage acm = Savage2GameServer.parseAllChat(recvData, recvDataLen);
-			if(acm != null)
+			// onClientTick();
+
+			// sendAction(ability, action);
+
+			Savage2GameServer.AllChatMessage acm = Savage2GameServer
+					.parseAllChat(recvData, recvDataLen);
+			if (acm != null)
 				onReceiveAllChat(acm.playerid, acm.msg);
-			
+
 			// see if data contains stronghold/lair id
 			if (!hasMainID) {
 				System.out
@@ -527,6 +529,7 @@ public abstract class Savage2Login {
 					// printRecv = false;
 					// sendPings = false;
 					// //readyToSpawn = true;
+					obtainedCmdC7Counter2 = true;
 				}
 			}
 
@@ -534,11 +537,12 @@ public abstract class Savage2Login {
 				joinTeam = true;
 			}
 			Savage2GameServer.parse602101(recvData, recvDataLen);
-			if (readyToSpawn && hasMainID && !characterSelected && !hasSpawned.get()) {
+			if (readyToSpawn && hasMainID && !characterSelected
+					&& !hasSpawned.get()) {
 				currentState.set(State.INSPEC);
 				onStateChange(State.INSPEC);
 			}
-			
+
 			// check if received login expired error packet
 			byte[] magic = { (byte) 0x9A, (byte) 0xDE, (byte) 0x97, (byte) 0xF1 };
 			byte gamMagic = 1;
@@ -754,7 +758,7 @@ public abstract class Savage2Login {
 								ack[k++] = receiveData[1];
 								ack[k++] = receiveData[2];
 								ack[k] = receiveData[3];
-								int n = Utility.getInt(receiveData,  0);
+								int n = Utility.getInt(receiveData, 0);
 								System.out
 										.println("[LOCAL_CLIENT] Received reliable packet #"
 												+ n
@@ -934,9 +938,15 @@ public abstract class Savage2Login {
 		 */
 	}
 
-	public static void sendAction(byte ability, byte action) {
-		byte[] sendData = Savage2GameServer.getActionPacket(clientID, ability, action, 0);
-		//byte[] sendData = Savage2GameServer.getTestPacket(clientID, action);
+	public static void setAction(byte ab, byte ac) {
+		ability = ab;
+		action = ac;
+	}
+
+	private static void sendAction(byte ability, byte action) {
+		byte[] sendData = Savage2GameServer.getActionPacket(clientID, ability,
+				action, 0);
+		// byte[] sendData = Savage2GameServer.getTestPacket(clientID, action);
 		DatagramPacket sendPacket = new DatagramPacket(sendData,
 				sendData.length, gameServerIPAddress, GAME_SERVER_PORT);
 		try {
@@ -954,7 +964,7 @@ public abstract class Savage2Login {
 		sendReliablePacket(sendPacket);
 	}
 
-	public abstract void onClientTick();
+	//public abstract void onClientTick();
 
 	public abstract void onStateChange(State state);
 

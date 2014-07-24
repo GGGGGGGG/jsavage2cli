@@ -388,6 +388,20 @@ public class Savage2GameServer {
 							break;
 					if (i == neutral.length()) {
 						System.out.println("Found Neutral.Neutral string");
+						
+						// fetch cmdC7counter2 initial val...this should be somewhere else once parsers are cleaner
+						//   seems to be preceded with 0xFFFFFFFF
+						int z;
+						for(z = 0; z + 3 < pkt.length; ++z) {
+							if((pkt[z] & pkt[z+1] & pkt[z+2] & pkt[z+3]) == (byte)0xFF)
+								break;
+						}
+						if(z + 3 != pkt.length)
+							z += 4;
+						cmdC7counter2 = Utility.getInt(pkt, z);
+						initC7counter2 = cmdC7counter2;
+						initC7counter2time = System.nanoTime(); 
+						
 						while (pkt[tp] != 1 || pkt[tp + 1] != 0
 								|| pkt[tp + 2] != 0 || pkt[tp + 3] != 0) {
 							++tp;
@@ -736,7 +750,7 @@ public class Savage2GameServer {
 	}
 	
 	public static void setTestPacketCounter(int c) {
-		testPacketCounter = c;
+		cmdC7counter1 = c;
 	}
 	
 	// userAction flag values
@@ -753,8 +767,15 @@ public class Savage2GameServer {
 	static byte testByte = 0;
 	static short testShort = 0x40F0;
 	static int testInt = 0x400000;
-	static int testPacketCounter = 0;
+	static int cmdC7counter1 = 0;
+	static int cmdC7counter2 = 0;
+	static long initC7counter2 = 0;
+	static long initC7counter2time = 0;
 	static int pingPacketCounter = 0;
+	static int nextExpectedClientCounter = 0; // next expected client counter
+	// seem to represent the "tick window" the server is currently at
+	static SynchronizedInt pkt5bcounter3 = new SynchronizedInt();
+	static SynchronizedInt pkt5bcounter4 = new SynchronizedInt();
 	
 	public static byte[] getTestPacket(byte[] unknown2bytes, byte testAction) {
 		byte moveDistWhenHit = (byte)100;//(byte)0x7f;//100; // nope // 0 makes character stay in place
@@ -781,10 +802,10 @@ public class Savage2GameServer {
 				00,
 
 				(byte) 0xC7, // marker
-				(byte) testPacketCounter,
-				(byte) (testPacketCounter >> 8),
-				(byte) (testPacketCounter >> 16),
-				(byte) (testPacketCounter >> 24),
+				(byte) cmdC7counter1,
+				(byte) (cmdC7counter1 >> 8),
+				(byte) (cmdC7counter1 >> 16),
+				(byte) (cmdC7counter1 >> 24),
 				// (byte)0xDC, 0x11, 0, 0, //<---this looks like a counter
 
 				(byte) 0xF6, // this seems to affect speed/rate of update
@@ -922,32 +943,49 @@ public class Savage2GameServer {
 		if (testShort >= 0x61DF)
 			testShort = 0;
 
-		++testPacketCounter;
+		++cmdC7counter1;
 		return b;
 	}
 
 	
-	
+	static int testxx = 0;
 	public static byte[] getActionPacket(byte[] clientid, byte ability, byte userAction, int movement) {
+		if(nextExpectedClientCounter != cmdC7counter1) {
+			System.out.println("getActionPacket(): DISCREPANCY between counter1 and next expected: " + cmdC7counter1 + " " + nextExpectedClientCounter);
+			cmdC7counter1 = nextExpectedClientCounter;
+		}
 		byte moveDistWhenHit = (byte)100;
 		byte affectsHitDist2 = 0;
 		byte dodge = (byte)(0);
 		int movement2 = movement + 0x7F;
-		movement = 0x00100000; // camrose moving backwairds orientation working?
+		movement = 0x00100000; // camrose moving backwards orientation working? not reporoducable :(
+		movement = 0x01000000; // <- now counter2
+		cmdC7counter2 = (int) ( initC7counter2 + (System.nanoTime() - initC7counter2time) / 1000000); //worked twice too :( at which showed low ping
+		//camrose seems to have a static ping!!!!!
+		//testxx+=2000;
+		//+ (new Random()).nextInt() %  100 both didn't change anything :(
+		if(pkt5bcounter4.wasUpdated()) testxx = 0;
+		else ++testxx;
+		int c4 = pkt5bcounter4.get();
+		int c3 = pkt5bcounter3.get();
+		//cmdC7counter2 += testxx * 100;
+		System.out.println("getActionPacket(): cmdC7counter2 = " + String.format("%08X", cmdC7counter2));
+		//if(c4 != 0) cmdC7counter2 = (c3 + c4) / 2 + testxx++;
+		System.out.println("getActionPacket(): " + String.format("%08X", c4) + " " + String.format("%08X", c3));
 		byte[] b = { (byte) 0x9A, (byte) 0xDE, (byte) 0x97, (byte) 0xF1,
 				01,
 				00,
 				00,
 
 				(byte) 0xC7, // marker
-				(byte) testPacketCounter,
-				(byte) (testPacketCounter >> 8),
-				(byte) (testPacketCounter >> 16),
-				(byte) (testPacketCounter >> 24),
-				(byte) movement,
-				(byte) (movement >> 8), 
-				(byte) (movement >> 16), 
-				(byte) (movement >> 24),  
+				(byte) cmdC7counter1,
+				(byte) (cmdC7counter1 >> 8),
+				(byte) (cmdC7counter1 >> 16),
+				(byte) (cmdC7counter1 >> 24),
+				(byte) cmdC7counter2,
+				(byte) (cmdC7counter2 >> 8), 
+				(byte) (cmdC7counter2 >> 16), 
+				(byte) (cmdC7counter2 >> 24),  
 				ability, userAction,
 				affectsHitDist2, dodge, (byte) 0xFF, 05,
 				0x38,
@@ -986,7 +1024,8 @@ public class Savage2GameServer {
 		};
 		b[5] = clientid[0];
 		b[6] = clientid[1];
-		++testPacketCounter;
+		++cmdC7counter1;
+		//cmdC7counter2 += 75 + (new Random()).nextInt() % 5;//75; // this worked only twice in a row; was set based on tick sleep time and packet capture that suggested simulating 1000 increments/sec
 		return b;
 	}
 	
@@ -1014,10 +1053,10 @@ public class Savage2GameServer {
 				00,
 
 				(byte) 0xC7, // marker
-				(byte) testPacketCounter,
-				(byte) (testPacketCounter >> 8),
-				(byte) (testPacketCounter >> 16),
-				(byte) (testPacketCounter >> 24),
+				(byte) cmdC7counter1,
+				(byte) (cmdC7counter1 >> 8),
+				(byte) (cmdC7counter1 >> 16),
+				(byte) (cmdC7counter1 >> 24),
 				// (byte)0xDC, 0x11, 0, 0, //<---this looks like a counter
 
 				(byte) 0xF6, // this seems to affect speed/rate of update
@@ -1042,7 +1081,7 @@ public class Savage2GameServer {
 		};
 		b[5] = unknown2bytes[0];
 		b[6] = unknown2bytes[1];
-		++testPacketCounter;
+		++cmdC7counter1;
 		return b;
 	}
 	
@@ -1059,10 +1098,10 @@ public class Savage2GameServer {
 				00,
 				00,
 				(byte) 0xC7, // marker
-				(byte) testPacketCounter,
-				(byte) (testPacketCounter >> 8),
-				(byte) (testPacketCounter >> 16),
-				(byte) (testPacketCounter >> 24),
+				(byte) cmdC7counter1,
+				(byte) (cmdC7counter1 >> 8),
+				(byte) (cmdC7counter1 >> 16),
+				(byte) (cmdC7counter1 >> 24),
 				(byte) pingPacketCounter,
 				(byte) (pingPacketCounter >> 8),
 				(byte) (pingPacketCounter >> 16),
@@ -1074,10 +1113,10 @@ public class Savage2GameServer {
 				(byte)y, (byte)((int)y >> 8), (byte)((int)y >> 16), (byte)((int)y >> 24), // yCoord
 				(byte)0xFF, 
 				(byte)0xC7,
-				(byte) testPacketCounter,
-				(byte) (testPacketCounter >> 8),
-				(byte) (testPacketCounter >> 16),
-				(byte) (testPacketCounter >> 24),
+				(byte) cmdC7counter1,
+				(byte) (cmdC7counter1 >> 8),
+				(byte) (cmdC7counter1 >> 16),
+				(byte) (cmdC7counter1 >> 24),
 				(byte) (pingPacketCounter + 16),
 				(byte) ((pingPacketCounter + 16)>> 8),
 				(byte) ((pingPacketCounter + 16) >> 16),
@@ -1087,7 +1126,7 @@ public class Savage2GameServer {
 		};
 		b[5] = unknown2bytes[0];
 		b[6] = unknown2bytes[1];
-		++testPacketCounter;
+		++cmdC7counter1;
 		return b;
 	}
 
@@ -1180,23 +1219,28 @@ contentLen apparently always 3 bytes extra (1 byte short) of being divisible by 
 		//System.out.println("Checking pkt5b magic: " + String.format("%x", b[7]));
 		if(b[7] != pktmagic) return false;
 		// NOTE: length bytes are excluded from length value
-		ByteBuffer bb = ByteBuffer.allocate(4);
-		bb.order(ByteOrder.LITTLE_ENDIAN);
 		int len = Utility.getInt(b, 8);
 		if(len < 4) return true;
 		byte[] content = new byte[len];
 		for(i = 12; i < bLen; ++i)
 			content[i - 12] = b[i];
 		parseAll5BTypes(content, len);
+		nextExpectedClientCounter = Utility.getInt(b, 12);
+		// get next test packet counter
+		cmdC7counter1 = Utility.getInt(b, 16);//Utility.getInt(b, 12);
+		pingPacketCounter = Utility.getInt(b, 16) - 0x1b;
+		// 20-23 and 24-27 seem to represent a "tick window" where client seemingly has to 
+		//   be somewhere within this window
+		pkt5bcounter3.set(Utility.getInt(b, 20));
+		pkt5bcounter4.set(Utility.getInt(b, 24));
+		//System.out.println("parsepkt5b(): set c3 c4 to");
+		//System.out.println(pkt5bcounter3.get() + " " + pkt5bcounter4);
+		
 		if(firstCoordPkt == false) return true;
 		
 		//Utility.dumpBytes(b,  bLen);
 		if(bLen < 54) return true;//for now - proper parsing shouldnt require this
-		// get next test packet counter
-		testPacketCounter = Utility.getInt(b, 16);//Utility.getInt(b, 12);
-		pingPacketCounter = Utility.getInt(b, 16) - 0x1b;
-		// 20-23 dunno
-		// 24-27 dunno
+
 		
 		// 2 bytes
 		
@@ -1240,7 +1284,8 @@ contentLen apparently always 3 bytes extra (1 byte short) of being divisible by 
 		while((b[p] != 0x46 /*|| b[p] != 0x45*/) /*&& b[p+4] != 0x46*/ && p+4 < bLen) ++p;
 		if(p + 4 == bLen) return true;
 		p -=4;
-		
+		ByteBuffer bb = ByteBuffer.allocate(4);
+		bb.order(ByteOrder.LITTLE_ENDIAN);
 		bb.rewind();
 		bb.put(b[++p]);
 		bb.put(b[++p]);

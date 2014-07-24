@@ -9,7 +9,7 @@ public class Savage2Client extends Savage2Login {
 	public Savage2Client() {
 		super();
 		login("camrose", "123camrose");
-		connectToGameServer("127.0.0.1", 11235);
+		connectToGameServer("162.248.7.113", 13235);
 	}
 
 	public static void main(String[] args) {
@@ -166,44 +166,6 @@ public class Savage2Client extends Savage2Login {
 	
 	byte testAction = 0;
 	boolean setupOnField = true;
-	@Override
-	public void onClientTick() {
-		State state = currentState.get();
-		if(state != State.ONFIELD) {
-			// just to keep the 5b packets coming - experimental
-			sendAction((byte)0, (byte)0);
-			if (state == State.SPAWNSCREEN) {
-				/*
-				// spawn test
-				short spawnID = Savage2GameServer.getStrongholdID();
-				System.out.println("Sending spawn at "
-						+ String.format("%04X", spawnID) + " request...");
-				sendSpawnRequest(spawnID);
-				*/
-			} else if(state == State.INSPEC) {
-				// join team test
-				System.out.println("Sending join team request...");
-				sendJoinTeamRequest(Savage2GameServer.JOIN_BEASTS);
-				// select character
-				System.out.println("Sending select character request...");
-				sendSelectCharacterRequest(Savage2GameServer.SAVAGE);
-			}
-
-		} else {
-			if(setupOnField) {
-				// Savage2GameServer.setOrientationByte("0xB0");
-				Savage2GameServer
-						.setTestPacketCounter(Savage2GameServer.pkt5dval1 + 0x600);
-				System.out.println("Entering test packet request loop...");
-				setupOnField = false;
-			}
-			testAction = Savage2GameServer.MOVE_FORWARD * 2;
-			byte action = (byte)8*2;//(byte)(pActionList % 2);//(byte)actionList[pActionList];
-			byte ability = 0;//(byte)(actionList[pActionList] >> 8);
-			pActionList = (pActionList + 1) % actionList.length;
-			sendAction(ability, action);
-		}
-	}
 	
 	@Override
 	public void onReceiveAllChat(int playerid, String msg) {
@@ -222,7 +184,32 @@ public class Savage2Client extends Savage2Login {
 
 	@Override
 	public void onStateChange(State state) {
+		if(state != State.ONFIELD) {
+			// just to keep the 5b packets coming - experimental
+			//sendAction((byte)0, (byte)0);
+			if(state == State.INSPEC) {
+				// join team test
+				System.out.println("Sending join team request...");
+				sendJoinTeamRequest(Savage2GameServer.JOIN_BEASTS);
+				// select character
+				System.out.println("Sending select character request...");
+				sendSelectCharacterRequest(Savage2GameServer.SAVAGE);
+			}
 
+		} else {
+			if(setupOnField) {
+				// Savage2GameServer.setOrientationByte("0xB0");
+				Savage2GameServer
+						.setTestPacketCounter(Savage2GameServer.pkt5dval1 + 0x600);
+				System.out.println("Entering test packet request loop...");
+				setupOnField = false;
+			}
+			testAction = Savage2GameServer.MOVE_FORWARD * 2;
+			byte action = (byte)9;//(byte)(pActionList % 2);//(byte)actionList[pActionList];
+			byte ability = 0;//(byte)(actionList[pActionList] >> 8);
+			pActionList = (pActionList + 1) % actionList.length;
+			setAction(ability, action);
+		}
 	}
 	
 	//portal spawn did not work on..

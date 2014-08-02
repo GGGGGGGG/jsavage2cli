@@ -9,11 +9,11 @@ public class Savage2Client extends Savage2Login {
 	public Savage2Client() {
 		super();
 		login("camrose", "123camrose");
-		connectToGameServer("162.248.7.113", 13235);
+		connectToGameServer("playsavage2.com", 11235);
 	}
 
 	public static void main(String[] args) {
-		// Utility.foo("DF C9 17 46 22 C6 B3 46 06 89 94 41");
+		//Utility.foo("E8 85 FC 45 7B 81 FD 45 4C 63 23 44", 666);
 		new Savage2Client();
 	}
 
@@ -169,7 +169,6 @@ public class Savage2Client extends Savage2Login {
 	
 	@Override
 	public void onReceiveAllChat(int playerid, String msg) {
-		System.out.println("Recevied allchatmessage: " + msg);
 		if(msg.contentEquals("camrose")) {
 			sendVCCommand(111);
 			//if (currentState.get() == State.SPAWNSCREEN) {
@@ -180,6 +179,16 @@ public class Savage2Client extends Savage2Login {
 				sendSpawnRequest(spawnID);
 			//}
 		}
+		if(msg.contentEquals("squad")) {
+			sendVCCommand(111);
+			//if (currentState.get() == State.SPAWNSCREEN) {
+				sendJoinSquadRequest(0);
+				sendSelectCharacterRequest(Savage2GameServer.SAVAGE);
+			//}
+		}
+		if(msg.contentEquals("savage")) {
+			sendSelectCharacterRequest(Savage2GameServer.SAVAGE);
+		}
 	}
 
 	@Override
@@ -188,12 +197,14 @@ public class Savage2Client extends Savage2Login {
 			// just to keep the 5b packets coming - experimental
 			//sendAction((byte)0, (byte)0);
 			if(state == State.INSPEC) {
+				/*
 				// join team test
 				System.out.println("Sending join team request...");
 				sendJoinTeamRequest(Savage2GameServer.JOIN_BEASTS);
 				// select character
 				System.out.println("Sending select character request...");
 				sendSelectCharacterRequest(Savage2GameServer.SAVAGE);
+				*/
 			}
 
 		} else {

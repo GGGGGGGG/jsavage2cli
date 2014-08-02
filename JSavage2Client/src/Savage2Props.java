@@ -1,6 +1,6 @@
 
-public class Savage2Props {
-	final int Prop_BaseBuilding = 0x491C5FF;
+public class Savage2Props { // those values are not consistent - revise or remove
+	final int Prop_BaseBuilding = 0x491C5FF; // also FF C5 C8 0A?
 	final int Prop_Mine = 0x558DF7;
 	final int Npc_Critter = 0x25D97FB5;
 }

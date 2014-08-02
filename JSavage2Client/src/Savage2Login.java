@@ -514,6 +514,9 @@ public abstract class Savage2Login {
 			if (acm != null)
 				onReceiveAllChat(acm.playerid, acm.msg);
 
+			Savage2GameServer.parsePkt5d(recvData, recvDataLen);
+			(new PlayerEntity()).parsePlayerEntities(recvData, recvDataLen);
+			
 			// see if data contains stronghold/lair id
 			if (!hasMainID) {
 				System.out

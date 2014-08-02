@@ -4,6 +4,7 @@ import java.net.DatagramSocket;
 import java.net.InetAddress;
 import java.nio.ByteBuffer;
 import java.nio.ByteOrder;
+import java.util.ArrayList;
 import java.util.Random;
 
 public class Savage2GameServer {
@@ -388,7 +389,7 @@ public class Savage2GameServer {
 							break;
 					if (i == neutral.length()) {
 						System.out.println("Found Neutral.Neutral string");
-						
+						/*
 						// fetch cmdC7counter2 initial val...this should be somewhere else once parsers are cleaner
 						//   seems to be preceded with 0xFFFFFFFF
 						int z;
@@ -401,7 +402,7 @@ public class Savage2GameServer {
 						cmdC7counter2 = Utility.getInt(pkt, z);
 						initC7counter2 = cmdC7counter2;
 						initC7counter2time = System.nanoTime(); 
-						
+						*/
 						while (pkt[tp] != 1 || pkt[tp + 1] != 0
 								|| pkt[tp + 2] != 0 || pkt[tp + 3] != 0) {
 							++tp;
@@ -951,13 +952,11 @@ public class Savage2GameServer {
 	static int testxx = 0;
 	public static byte[] getActionPacket(byte[] clientid, byte ability, byte userAction, int movement) {
 		if(nextExpectedClientCounter != cmdC7counter1) {
-			System.out.println("getActionPacket(): DISCREPANCY between counter1 and next expected: " + cmdC7counter1 + " " + nextExpectedClientCounter);
+			//System.out.println("getActionPacket(): DISCREPANCY between counter1 and next expected: " + cmdC7counter1 + " " + nextExpectedClientCounter);
 			cmdC7counter1 = nextExpectedClientCounter;
 		}
-		byte moveDistWhenHit = (byte)100;
 		byte affectsHitDist2 = 0;
 		byte dodge = (byte)(0);
-		int movement2 = movement + 0x7F;
 		movement = 0x00100000; // camrose moving backwards orientation working? not reporoducable :(
 		movement = 0x01000000; // <- now counter2
 		cmdC7counter2 = (int) ( initC7counter2 + (System.nanoTime() - initC7counter2time) / 1000000); //worked twice too :( at which showed low ping
@@ -968,10 +967,8 @@ public class Savage2GameServer {
 		else ++testxx;
 		int c4 = pkt5bcounter4.get();
 		int c3 = pkt5bcounter3.get();
-		//cmdC7counter2 += testxx * 100;
-		System.out.println("getActionPacket(): cmdC7counter2 = " + String.format("%08X", cmdC7counter2));
-		//if(c4 != 0) cmdC7counter2 = (c3 + c4) / 2 + testxx++;
-		System.out.println("getActionPacket(): " + String.format("%08X", c4) + " " + String.format("%08X", c3));
+		//System.out.println("getActionPacket(): cmdC7counter2 = " + String.format("%08X", cmdC7counter2));
+		//System.out.println("getActionPacket(): " + String.format("%08X", c4) + " " + String.format("%08X", c3));
 		byte[] b = { (byte) 0x9A, (byte) 0xDE, (byte) 0x97, (byte) 0xF1,
 				01,
 				00,
@@ -1202,6 +1199,8 @@ contentLen apparently always 3 bytes extra (1 byte short) of being divisible by 
 	
 	static float initialX = 0;
 	static float initialY = 0;
+	static float finalX = 0;
+	static float finalY = 0;
 	static boolean firstCoordPkt = true;
 	
 	public static boolean parsePkt5b(byte[] serverconnid, byte[] b, int bLen) {
@@ -1449,7 +1448,7 @@ contentLen apparently always 3 bytes extra (1 byte short) of being divisible by 
 	//we also need values used by client later on to get pkt5b
 	public static int pkt5dval1 = 0;
 	public static int pkt5dval2 = 0;
-	public static boolean parsePkt5d(byte[] unknown2bytes, byte[] b) {
+	public static boolean parsePkt5d1(byte[] unknown2bytes, byte[] b) {
 		byte[] magic = {(byte)0x9A, (byte)0xDE, (byte)0x97, (byte)0xF1};
 		byte magic2 = 1;
 		byte[] clientBytes = unknown2bytes;
@@ -1475,6 +1474,35 @@ contentLen apparently always 3 bytes extra (1 byte short) of being divisible by 
 		bb.put(b[0x17]);
 		bb.put(b[0x18]);
 		pkt5dval2 = bb.getInt(0);
+		return true;
+	}
+	
+	public static boolean parsePkt5d(byte[] b, int len) {
+		byte[] magic = {(byte)0x9A, (byte)0xDE, (byte)0x97, (byte)0xF1};
+		byte magic2 = 1;
+		byte pktmagic = (byte)0x5D;
+		int i = 0;
+		if(len < magic.length + 4) return false;
+		for(;i < magic.length; ++i) {
+			if(magic[i] != b[i]) break;
+		}
+		if(i < magic.length) return false;
+		if(b[i] != magic2) return false;
+		if(b[7] != pktmagic) return false;
+		
+		// fetch cmdC7counter2 initial val
+		//   seems to be preceded with 0xFFFFFFFF
+		int z;
+		for(z = 8; z + 3 < len; ++z) {
+			if((b[z] & b[z+1] & b[z+2] & b[z+3]) == (byte)0xFF)
+				break;
+		}
+		if(z + 3 != len)
+			z += 4;
+		cmdC7counter2 = Utility.getInt(b, z);
+		initC7counter2 = cmdC7counter2;
+		initC7counter2time = System.nanoTime();
+		
 		return true;
 	}
 	
@@ -1727,11 +1755,214 @@ contentLen apparently always 3 bytes extra (1 byte short) of being divisible by 
 		//parse0x82D(content, len); // fail - prints own location apparently
 		//parse0x026F(content, len); // fail - prints own location apparently
 		//parse0x01D0(content, len); // fail - not found/hardly found
-		parseDirty(content, len);
+		//parseDirty(content, len);
 		
 		// spawn portal stuff
 		parsePortalMarker(content, len);
 		parsePortalId(content, len);
+		
+		// client's own location
+		parsepkt5b2d3901(content, len);
+		
+		//parsepkt5btype5(content, len);
+		//parsepkt5btype0(content, len);
+		
+		/*
+		parsepkt5bea0541(content, len);
+		parsepkt5b180f41(content, len);
+		parsepkt5b180fe7(content, len);
+		parsepkt5b1a4041(content, len);
+		*/
+		parsepkt5b0000index41(content, len);
+		
+		//parsepkt5b3e2d16(content, len);
+		//parsepkt5b522e01(content, len);
+		//parsepkt5bd62b3a(content, len);
+		//parsepkt5bxxx(content, len);
+	}
+
+	static boolean parsepkt5b0000index41(byte[] b, int len) {
+		int i;
+		for(i = 0; i + 1 + 2 + 1 + 12 < len; ++i) {
+			if(b[i] == 0 && b[i+1] == 0 && b[i+4] == 0x41)
+				break;
+		}
+		if(i + 16 == len) return false;
+		i += 2;
+		short playerentityindex = Utility.getShort(b, i);
+		i += 3;
+		float x = Utility.getFloat(b, i);
+		float y = Utility.getFloat(b, i+4);
+		float z = Utility.getFloat(b, i+8);
+		finalX = x;
+		finalY = y;
+		lookTowardsXY(x, y);
+		return true;
+	}
+	
+	static boolean parsepkt5b1a4041(byte[] b, int len) {
+		byte[] magic = {(byte)0x1A, (byte)0x40, (byte)0x41};
+		int i;
+		for(i = 0; i + 2 + 12 < len; ++i) {
+			if(b[i] == magic[0] && b[i+1] == magic[1] && b[i+2] == magic[2])
+				break;
+		}
+		if(i + 2 + 12 == len) return false;
+		i += 3;
+		float x = Utility.getFloat(b, i);
+		float y = Utility.getFloat(b, i+4);
+		float z = Utility.getFloat(b, i+8);
+		finalX = x;
+		finalY = y;
+		lookTowardsXY(x, y);
+		return true;
+	}
+	
+	static boolean parsepkt5bea0541(byte[] b, int len) {
+		byte[] magic = {(byte)0xEA, 5, 0x41};
+		int i;
+		for(i = 0; i + 2 + 12 < len; ++i) {
+			if(b[i] == magic[0] && b[i+1] == magic[1] && b[i+2] == magic[2])
+				break;
+		}
+		if(i + 2 + 12 == len) return false;
+		i += 3;
+		float x = Utility.getFloat(b, i);
+		float y = Utility.getFloat(b, i+4);
+		float z = Utility.getFloat(b, i+8);
+		finalX = x;
+		finalY = y;
+		lookTowardsXY(x, y);
+		return true;
+	}
+	
+	static void parsepkt5b180fe7(byte[] b, int len) {
+		byte[] magic = {(byte)0x18, (byte)0x0F, (byte)0xE7};
+		int i;
+		for(i = 0; i + 2 + 12 < len; ++i) {
+			if(b[i] == magic[0] && b[i+1] == magic[1] && b[i+2] == magic[2])
+				break;
+		}
+		if(i + 2 + 12 == len) return;
+		i += 6; // skip 2 bytes magic + 3 bytes unknown
+		float x = Utility.getFloat(b, i);
+		float y = Utility.getFloat(b, i+4);
+		float z = Utility.getFloat(b, i+8);
+		finalX = x;
+		finalY = y;
+		lookTowardsXY(finalX, finalY);
+	}
+	
+	static void parsepkt5b180f41(byte[] b, int len) {
+		byte[] magic = {(byte)0x18, (byte)0x0F, (byte)0x41};
+		int i;
+		for(i = 0; i + 2 + 12 < len; ++i) {
+			if(b[i] == magic[0] && b[i+1] == magic[1] && b[i+2] == magic[2])
+				break;
+		}
+		if(i + 2 + 12 == len) return;
+		i += 3;
+		float x = Utility.getFloat(b, i);
+		float y = Utility.getFloat(b, i+4);
+		float z = Utility.getFloat(b, i+8);
+		finalX = x;
+		finalY = y;
+		lookTowardsXY(finalX, finalY);
+	}
+	
+	static void parsepkt5b2d3901(byte[] b, int len) {
+		byte[] magic = {(byte)0x2D, (byte)0x39, (byte)0x01};
+		int i;
+		for(i = 0; i + 2 + 12 < len; ++i) {
+			if(b[i] == magic[0] && b[i+1] == magic[1] && b[i+2] == magic[2])
+				break;
+		}
+		if(i + 2 + 12 == len) return;
+		i += 3;
+		float x = Utility.getFloat(b, i);
+		float y = Utility.getFloat(b, i+4);
+		float z = Utility.getFloat(b, i+8);
+		initialX = x;
+		initialY = y;
+		lookTowardsXY(finalX, finalY);
+	}
+	
+	static void parsepkt5bxxx(byte[] b, int len) {
+		byte[] magic = {(byte)0x08, (byte)0xF1, (byte)0x02};
+		int i;
+		for(i = 0; i + 2 + 12 < len; ++i) {
+			if(b[i] == magic[0] && b[i+1] == magic[1] && b[i+2] == magic[2])
+				break;
+		}
+		if(i + 2 + 12 == len) return;
+		i += 3;
+		float x = Utility.getFloat(b, i);
+		float y = Utility.getFloat(b, i+4);
+		float z = Utility.getFloat(b, i+8);
+		lookTowardsXY(x, y);
+	}
+	
+	static void parsepkt5bd62b3a(byte[] b, int len) {
+		byte[] magic = {(byte)0xD6, 0x2B, (byte)0x3A};
+		int i;
+		for(i = 0; i + 2 + 12 < len; ++i) {
+			if(b[i] == magic[0] && b[i+1] == magic[1] && b[i+2] == magic[2])
+				break;
+		}
+		if(i + 2 + 12 == len) return;
+		i += 3;
+		float x = Utility.getFloat(b, i);
+		float y = Utility.getFloat(b, i+4);
+		float z = Utility.getFloat(b, i+8);
+		lookTowardsXY(x, y);
+	}
+	
+	static void parsepkt5b522e01(byte[] b, int len) {
+		byte[] magic = {(byte)0x52, 0x2E, 1};
+		int i;
+		for(i = 0; i + 2 + 12 < len; ++i) {
+			if(b[i] == magic[0] && b[i+1] == magic[1] && b[i+2] == magic[2])
+				break;
+		}
+		if(i + 2 + 12 == len) return;
+		i += 3;
+		float x = Utility.getFloat(b, i);
+		float y = Utility.getFloat(b, i+4);
+		float z = Utility.getFloat(b, i+8);
+		lookTowardsXY(x, y);
+	}
+	
+	static void parsepkt5b3e2d16(byte[] b, int len) {
+		byte[] magic = {(byte)0x3E, 0x2D, 0x16};
+		int i;
+		for(i = 0; i + 2 + 12 < len; ++i) {
+			if(b[i] == magic[0] && b[i+1] == magic[1] && b[i+2] == magic[2])
+				break;
+		}
+		if(i + 2 + 12 == len) return;
+		i += 3;
+		float x = Utility.getFloat(b, i);
+		float y = Utility.getFloat(b, i+4);
+		float z = Utility.getFloat(b, i+8);
+		lookTowardsXY(x, y);
+	}
+	
+	static void parsepkt5btype0(byte[] b, int len) {
+		int n = 5;
+		if(b[16] != 0 || len < 16 + n + 12 + 1) return;
+		//skip n bytes, assume next 12 bytes as location
+		int i = 16 + n + 1;
+		float x = Utility.getFloat(b, i);
+		float y = Utility.getFloat(b, i+4);
+		float z = Utility.getFloat(b, i+8);
+		lookTowardsXY(x, y);
+	}
+	
+	static void parsepkt5btype5(byte[] b, int len) {
+		if(b[16] != 5 || len < 24) return;
+		for(int i = 0; i < 8; ++i)
+			System.out.print(String.format("%02X", b[17+i]) + " ");
+		System.out.println();
 	}
 	
 	// 86 00 00 00 03 B4 4A 60 21 01 4D 0F 00 00
@@ -1802,6 +2033,31 @@ contentLen apparently always 3 bytes extra (1 byte short) of being divisible by 
 	}
 	
 	
+	
+	public static void parsepkt5bhealthchange(byte[] b, int len) {
+		//byte[] marker1 = {3, 0};
+		//byte[] markerHealth = {0x51, 0};
+		int i = 0;
+		while(b[i] != 3 && b[i+1] != 0 && b[i+4]!=0x51 && b[i+5]!=0) {
+			++i;
+			if(i + 7 == len) return;
+		}
+		i += 2;
+		short index = Utility.getShort(b, i);
+		i += 4;
+		short health = Utility.getShort(b, i);
+		/*
+		03 00 
+		B8 8D 
+		51 00 
+		52 01 camrose health
+		*/
+		
+	}
+	
+	
+	
+	
 
 	public static final int SERVER_IDLE_TIMEOUT = 1;
 	public static int parseServerMessage(byte[] b, int len) {
@@ -1846,4 +2102,98 @@ contentLen apparently always 3 bytes extra (1 byte short) of being divisible by 
 	 * AllChat message received:hello 4E 00 00 00 03 F4 AA 60 03 1E 00 00 00 68
 	 * 65 6C 6C 6F 00
 	 */
+	
+	/*
+	59 0E 
+	86 03 
+	F7 8D 75 0F 
+	6D 73 1F 46 D8 5B 99 45 53 96 8B C0 mid east mine xyz
+	3E 29 06 00 21 01 4F 15
+	B8 88 00 00 gold
+	A6 0E 00 00 
+	FA 00 00 00 extraction rate
+
+	5B 0E 
+	86 03
+	F7 8D 75 06 
+	76 FA B8 45 DE 57 2C 46 1B 0D C0 3F mid west mine xyz
+	3A AC 02 00 21 01 
+	B8 88 00 00 gold
+	80 07 00 00 
+	FA 00 00 00 extraction rate
+	*/
+	public static int parsepkt5dmine(byte[] b, int startIndex, int len) {
+		int i = startIndex;
+		if(i < 0 || i > len) return -1;
+		byte[] magic = {(byte)0x86, 0x03};
+		while(b[i] != magic[0] || b[i+1] != magic[1]) {
+			++i;
+			if(i - 1 == len) return -1;
+		}
+		short index = (short)(Utility.getShort(b, i - 2) / 2); // entity #
+		i += 6; //skip magic and unknown 4 bytes
+		float x = Utility.getFloat(b, i);
+		float y = Utility.getFloat(b, i + 4);
+		float z = Utility.getFloat(b, i + 8);
+		i += 14; // skip unknown 2 bytes after xyz
+		short marker = Utility.getShort(b, i);
+		// marker shoud be 2 or 6
+		if(marker == 2) i += 4;
+		else if(marker == 6) i+= 6;
+		else {
+			System.out.println("parsepkt5bmine(): unknown mine format");
+			return -1;
+		}
+		int gold = Utility.getInt(b, i);
+		i += 8; // done with gold, skip unknown 4 bytes
+		int extractionRate = Utility.getInt(b, i);
+		
+		// add new entity
+		MineEntity e = new MineEntity();
+		e.index = index;
+		e.type = 0x386;
+		e.x = x;
+		e.y = y;
+		e.z = z;
+		e.extractionRate = extractionRate;
+		e.gold = gold;
+		System.out.println("Added new mine entity");
+		World.addWorldEntity(e);
+		
+		return i + 4;
+	}
+	
+	public static int parsepkt5dbasebuilding(byte[] b, int startIndex, int len) {
+		int i = startIndex;
+		if(i < 0 || i > len) return -1;
+		byte[] magic = {(byte)0x86, 0x03};
+		while(b[i] != magic[0] || b[i+1] != magic[1]) {
+			++i;
+			if(i - 1 == len) return -1;
+		}
+		short index = (short)(Utility.getShort(b, i - 2) / 2); // entity #
+		i += 6; //skip magic and unknown 4 bytes
+		float x = Utility.getFloat(b, i);
+		float y = Utility.getFloat(b, i + 4);
+		float z = Utility.getFloat(b, i + 8);
+		i += 12; // done with xyz
+		
+		
+		// add new entity
+		BaseBuildingEntity e = new BaseBuildingEntity();
+		e.index = index;
+		e.type = 0x384;
+		e.x = x;
+		e.y = y;
+		e.z = z;
+		for(int j = 0; j < 7; ++j)
+			e.unknown7bytes[j] = b[i++];
+		System.out.println("Added new basebuilding entity");
+		World.addWorldEntity(e);
+		return i;
+	}
+	
+	
+	
+
 }

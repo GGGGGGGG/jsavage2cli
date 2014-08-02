@@ -147,7 +147,7 @@ public class Utility {
 	
 	
 	
-	public static void foo(String str) {
+	public static void foo(String str, int id) {
 		float x,y,z;
 		ByteBuffer bb = ByteBuffer.allocate(4);
 		bb.order(ByteOrder.LITTLE_ENDIAN);
@@ -178,7 +178,9 @@ public class Utility {
 		z = bb.getFloat(0);
 		bb.rewind();
 		
-		System.out.println("bindimpulse game P Cmd \"setposition 614 " 
+		System.out.println("bindimpulse game P Cmd \"setposition " + id + " "
 		+ x + " " + y + " " + z + "\"");
 	}
+	
+	//public static void foo2(String str) {}
 }

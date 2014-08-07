@@ -2,14 +2,36 @@ import java.net.DatagramPacket;
 import java.nio.ByteBuffer;
 import java.nio.ByteOrder;
 
-public class Savage2Client extends Savage2Login {
+public class Savage2Client extends S2Lib {
 
 	final static String MASTER_SERVER = "masterserver.savage2.s2games.com";
+	
+	final static String US_WEST1_HOST = "162.248.7.113";
+	final static int US_WEST1_PORT = 13235;
+
+	final static String OPHELIA_EU1_HOST = "188.40.72.24";
+	final static int OPHELIA_EU1_PORT = 11236;
+
+	final static String OPHELIA_EU3_HOST = "188.40.72.24";
+	final static int OPHELIA_EU3_PORT = 11236;
+
+	final static String MGF_GAMING_HOST = "78.46.21.137";
+	final static int MGF_GAMING_PORT = 11235;
+
+	final static String GG = "192.99.34.197";
+	final static int GGport = 11236;
+
+	final static String NA_EAST_HOST = "192.99.34.197";
+	final static int NA_EAST_PORT = 11239;
+	
+	String host =  "188.40.72.24";//"127.0.0.1";
+	int port = 11235;//11235;
 
 	public Savage2Client() {
 		super();
-		login("camrose", "123camrose");
-		connectToGameServer("playsavage2.com", 11235);
+		(new Thread(new CnCServer(null))).start();
+		login("camrose", "123camrose"); // account_id = 845432
+		connectToGameServer(host, port);//"162.248.7.113", 13235);
 	}
 
 	public static void main(String[] args) {
@@ -33,7 +55,7 @@ public class Savage2Client extends Savage2Login {
 				switch (recvDataSess[11]) {
 				case 'o': // 0x..
 					String ori = new String(recvDataSess, 12, 4);
-					Savage2GameServer.setOrientationByte(ori);
+					S2Factory.setOrientationByte(ori);
 				}
 			}
 			if (dataLen >= 12)
@@ -46,16 +68,16 @@ public class Savage2Client extends Savage2Login {
 					int squadNo = 0;
 					switch (recvDataSess[12]) {
 					case '1':
-						team = Savage2GameServer.JOIN_HUMANS;
+						team = S2Factory.JOIN_HUMANS;
 						break;
 					case '2':
-						team = Savage2GameServer.JOIN_BEASTS;
+						team = S2Factory.JOIN_BEASTS;
 						break;
 					default:
-						team = Savage2GameServer.JOIN_HUMANS;
+						team = S2Factory.JOIN_HUMANS;
 
 					}
-					Savage2GameServer.setCurrentTeam(team);
+					S2Factory.setCurrentTeam(team);
 					boolean tryAll = false;
 					switch (recvDataSess[13]) {
 					case '0':
@@ -94,60 +116,60 @@ public class Savage2Client extends Savage2Login {
 					byte character;
 					switch (recvDataSess[12]) {
 					case 'q':
-						character = Savage2GameServer.BUILDER;
+						character = S2Factory.BUILDER;
 						break;
 					case 'w':
-						character = Savage2GameServer.MARKSMAN;
+						character = S2Factory.MARKSMAN;
 						break;
 					case 'e':
-						character = Savage2GameServer.SAVAGE;
+						character = S2Factory.SAVAGE;
 						break;
 					case 'r':
-						character = Savage2GameServer.CHAPLAIN;
+						character = S2Factory.CHAPLAIN;
 						break;
 					case 't':
-						character = Savage2GameServer.LEGIONNAIRE;
+						character = S2Factory.LEGIONNAIRE;
 						break;
 					case 'y':
-						character = Savage2GameServer.STEAMBUCHET;
+						character = S2Factory.STEAMBUCHET;
 						break;
 					case 'u':
-						character = Savage2GameServer.BATTERINGRAM;
+						character = S2Factory.BATTERINGRAM;
 						break;
 					case 'z':
-						character = Savage2GameServer.CONJURER;
+						character = S2Factory.CONJURER;
 						break;
 					case 'x':
-						character = Savage2GameServer.SHAPESHIFTER;
+						character = S2Factory.SHAPESHIFTER;
 						break;
 					case 'c':
-						character = Savage2GameServer.HUNTER;
+						character = S2Factory.HUNTER;
 						break;
 					case 'v':
-						character = Savage2GameServer.SHAMAN;
+						character = S2Factory.SHAMAN;
 						break;
 					case 'b':
-						character = Savage2GameServer.PREDATOR;
+						character = S2Factory.PREDATOR;
 						break;
 					case 'n':
-						character = Savage2GameServer.BEHEMOTH;
+						character = S2Factory.BEHEMOTH;
 						break;
 					case 'm':
-						character = Savage2GameServer.TEMPEST;
+						character = S2Factory.TEMPEST;
 						break;
 
 					case 'p':
-						character = Savage2GameServer.MALPHAS;
+						character = S2Factory.MALPHAS;
 						break;
 					default:
-						character = Savage2GameServer.BUILDER;
+						character = S2Factory.BUILDER;
 					}
 					sendSelectCharacterRequest(character);
 					short mainID;
-					if (Savage2GameServer.getCurrentTeam() == Savage2GameServer.JOIN_HUMANS)
-						mainID = Savage2GameServer.getStrongholdID();
+					if (S2Factory.getCurrentTeam() == S2Factory.JOIN_HUMANS)
+						mainID = S2Factory.getStrongholdID();
 					else
-						mainID = Savage2GameServer.getLairID();
+						mainID = S2Factory.getLairID();
 					sendSpawnRequest(mainID);
 
 					hasSpawned.set(true);
@@ -173,29 +195,46 @@ public class Savage2Client extends Savage2Login {
 			sendVCCommand(111);
 			//if (currentState.get() == State.SPAWNSCREEN) {
 				// spawn test
-				short spawnID = Savage2GameServer.getPortalId();
+				short spawnID = S2Factory.getPortalId();
 				System.out.println("Sending spawn at "
 						+ String.format("%04X", spawnID) + " request...");
 				sendSpawnRequest(spawnID);
 			//}
 		}
+		if(msg.contentEquals("team0")) {
+			// join team test
+			System.out.println("Sending join team request...");
+			sendJoinTeamRequest((byte)0);
+		}
+		if(msg.contentEquals("team1")) {
+			// join team test
+			System.out.println("Sending join team request...");
+			sendJoinTeamRequest(S2Factory.JOIN_HUMANS);
+		}
+		if(msg.contentEquals("team2")) {
+			// join team test
+			System.out.println("Sending join team request...");
+			sendJoinTeamRequest(S2Factory.JOIN_BEASTS);
+		}
 		if(msg.contentEquals("squad")) {
 			sendVCCommand(111);
 			//if (currentState.get() == State.SPAWNSCREEN) {
 				sendJoinSquadRequest(0);
-				sendSelectCharacterRequest(Savage2GameServer.SAVAGE);
+				sendSelectCharacterRequest(S2Factory.SAVAGE);
 			//}
 		}
 		if(msg.contentEquals("savage")) {
-			sendSelectCharacterRequest(Savage2GameServer.SAVAGE);
+			sendSelectCharacterRequest(S2Factory.SAVAGE);
+		}
+		if(msg.contentEquals("camdc")) {
+			disconnectFromGameServer();
+			System.exit(0);
 		}
 	}
 
 	@Override
 	public void onStateChange(State state) {
 		if(state != State.ONFIELD) {
-			// just to keep the 5b packets coming - experimental
-			//sendAction((byte)0, (byte)0);
 			if(state == State.INSPEC) {
 				/*
 				// join team test
@@ -210,21 +249,39 @@ public class Savage2Client extends Savage2Login {
 		} else {
 			if(setupOnField) {
 				// Savage2GameServer.setOrientationByte("0xB0");
-				Savage2GameServer
-						.setTestPacketCounter(Savage2GameServer.pkt5dval1 + 0x600);
+				S2Factory
+						.setTestPacketCounter(S2Factory.pkt5dval1 + 0x600);
 				System.out.println("Entering test packet request loop...");
 				setupOnField = false;
 			}
+			/*
 			testAction = Savage2GameServer.MOVE_FORWARD * 2;
-			byte action = (byte)9;//(byte)(pActionList % 2);//(byte)actionList[pActionList];
+			byte action = (byte)((1 + pActionList) % 10);//(byte)(pActionList % 2);//(byte)actionList[pActionList];
 			byte ability = 0;//(byte)(actionList[pActionList] >> 8);
 			pActionList = (pActionList + 1) % actionList.length;
 			setAction(ability, action);
+			*/
 		}
 	}
 	
-	//portal spawn did not work on..
-	// moonlight ancientcities autumn bunker crossroads desolation duskwood eden hellpeak
-	// hiddenvillage kunlunpass losthills mirakar...havent test others
+	@Override
+	public void onSendAction(byte ability, byte action) {
+		byte ab = 0;
+		byte ac = 0;
+		ac = (byte)((1 & action + 1) % 2);
+		ac = (byte)(S2Factory.MOVE_FORWARD | ac);
+		setAction(ability, ac);
+	}
+	
+	@Override
+	public void onOfficerPromotion() {
+		
+	}
+	
+	@Override
+	public void onServerIdleTimeout() {
+		disconnectFromGameServer();
+		connectToGameServer(host, port);
+	}
 
 }

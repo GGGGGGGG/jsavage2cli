@@ -1,10 +1,17 @@
 
 	public class PlayerStats {
-        /*
-		5A 01 6D 00 
-		02 00 00 00    
-		04 00 04 00 A6 00 
-		*/
+		//TODO unknown 4 bytes
+		// in-game statistics
+		short exp;
+		short gold;
+		short souls;
+		int lvl;
+		// TODO variable number of short
+		short ping;
+		int kills;
+		int deaths;
+		int assists;
+		// END in-game statistics
 		int playerRank;
 		int playerExp;
 		int something;

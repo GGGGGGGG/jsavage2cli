@@ -13,42 +13,74 @@ public class PlayerEntity extends Entity {
 
 	PlayerEntity() {
 	}
+	
+	public PlayerEntity clone() {
+		PlayerEntity e = new PlayerEntity();
+		e.entityIndex = entityIndex;
+		e.accountid = accountid;
+		e.clientnum = clientnum;
+		e.nickname = String.copyValueOf(nickname.toCharArray());
+		e.clanname = String.copyValueOf(clanname.toCharArray());
+		e.role = role;
+		e.team = team;
+		e.squad = squad;
+		return e;
+	}
+	
+	public void print() {
+		System.out.println("nickname=" + nickname);
+		System.out.println("clientnum=" + clientnum);
+		System.out.println("team=" + team);
+		System.out.println("squad=" + squad);
+		System.out.println("u2b1=" + index);
+		System.out.println("entity index=" + entityIndex);
+	}
 
-	public void parsePlayerEntities(byte[] b, int len) {
+	public static void parsePlayerEntities(byte[] b, int len) {
 		for(int i = 0; i < len;)
 			i = parsePlayerEntity(b, i, len);
 	}
 	
-	public int parsePlayerEntity(byte[] b, int iStart, int len) {
+	public static int parsePlayerEntity(byte[] b, int iStart, int len) {
 		try {
 			int i = iStart;
 			// look for player entry magic
 			while(b[i] != 6 || b[i + 1] != 0)
 				++i;
+			if(i > len) return len;
 			i -= 2;
 			short someIndex = Utility.getShort(b, i);
 			i += 4;
+			// NB: length checks are necessary because un-zeroed out byte arrays could be (re)used!
+			if(i + 4 > len) return len;
 			int marker1 = Utility.getInt(b, i);
 			//System.out.println("parsePlayerEntity(): found marker1=" + String.format("%08X", marker1));
 			switch (marker1) {
 			case 0xFEBFFFFD:
-				i += 15; // skip to account id
+				if(b[i + 5] == (byte)0xFF && b[i + 12] == (byte)0xFF)
+					i += 16;
+				else if(b[i + 5] == (byte)0xFA)
+					i += 14;
+				else
+					i += 15;
+				// skip to account id
 				break;
 			case 0xE9F7FBDF:
 				i += 15;
 				break;
 			case 0xEBF7FBDF:
 				byte marker2 = b[i + 5];
-				if (marker2 == (byte)0xFE || marker2 == (byte)0xFF)
-					i += 11;
+				byte marker3 = b[i + 12];
+				if((marker2 == (byte)0xFE || marker2 == (byte)0xFF) 
+						&& marker3 == (byte)0xFF)
+					i += 17;//11;
 				else 
-					i += 10;
+					i += 16;//10;
 				break;
 			case 0xFE9FFFFD:
 				i += 14;
 				break;
 			case 0xFD5BDBDF:
-				//System.out.println("parsePlayerEntity(): before i = " + i);
 				byte m3 = b[i + 10];
 				if( (b[i + 4] == 0x56 || b[i + 4] == 0x76) &&
 						(m3 == (byte)0xFD || m3 == (byte)0xBD || m3 == (byte)0xF7 || m3 == (byte)0xFF) )
@@ -56,7 +88,6 @@ public class PlayerEntity extends Entity {
 				else if(b[i + 4] == 0x56)
 					i += 13;
 				else i += 12;
-				//System.out.println("parsePlayerEntity(): after i = " + i);
 				break;
 			case 0xBFD5FBFD:
 				i += 13;
@@ -72,6 +103,9 @@ public class PlayerEntity extends Entity {
 				break;
 			case 0xFAFBDBDF:
 				i += 14;
+				break;
+			case 0x7D97D3FD:
+				i += 9;
 				break;
 			default:
 				return i;
@@ -108,8 +142,8 @@ public class PlayerEntity extends Entity {
 			e.entityIndex = entityIndex;
 			e.accountid = accountid;
 			e.clientnum = clientnum;
-			e.nickname = nickname;
-			e.clanname = clanname;
+			e.nickname = String.copyValueOf(nickname.toCharArray());
+			e.clanname = String.copyValueOf(clanname.toCharArray());
 			e.role = role;
 			e.team = team;
 			e.squad = squad;

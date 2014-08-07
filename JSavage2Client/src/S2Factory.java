@@ -7,7 +7,10 @@ import java.nio.ByteOrder;
 import java.util.ArrayList;
 import java.util.Random;
 
-public class Savage2GameServer {
+public class S2Factory {
+	public static final int HUMAN_TEAM = 1;
+	public static final int BEAST_TEAM = 2;
+	
 	static int msgCounter = 1;
 
 	// current map info
@@ -389,20 +392,7 @@ public class Savage2GameServer {
 							break;
 					if (i == neutral.length()) {
 						System.out.println("Found Neutral.Neutral string");
-						/*
-						// fetch cmdC7counter2 initial val...this should be somewhere else once parsers are cleaner
-						//   seems to be preceded with 0xFFFFFFFF
-						int z;
-						for(z = 0; z + 3 < pkt.length; ++z) {
-							if((pkt[z] & pkt[z+1] & pkt[z+2] & pkt[z+3]) == (byte)0xFF)
-								break;
-						}
-						if(z + 3 != pkt.length)
-							z += 4;
-						cmdC7counter2 = Utility.getInt(pkt, z);
-						initC7counter2 = cmdC7counter2;
-						initC7counter2time = System.nanoTime(); 
-						*/
+
 						while (pkt[tp] != 1 || pkt[tp + 1] != 0
 								|| pkt[tp + 2] != 0 || pkt[tp + 3] != 0) {
 							++tp;
@@ -513,220 +503,7 @@ public class Savage2GameServer {
 		}
 	}
 
-	// fail; the FF FF FB .. changes
-	public static void getStrongholdLairIDs2(byte[] pkt) {
-		// check magic
-		byte[] magic = { (byte) 0x9A, (byte) 0xDE, (byte) 0x97, (byte) 0xF1 };
-		for (int i = 0; i < 4; ++i)
-			if (pkt[i] != magic[i])
-				return;
-		// if(pkt[7] != 0x5D) return; // not packet we are looking for//wrong -
-		// this changes
-		int p = 0;
-		int prevp = 0;
-		int j = 0;
-		int idIndex = -1;
-		int iHuman = -1;
-		int iBeast = -1;
-		String team = "Team 1";
-		String race = "Human";
-		boolean doBefore = true;
-		ByteBuffer bb = ByteBuffer.allocate(2);
-		bb.order(ByteOrder.LITTLE_ENDIAN);
-		while (p < pkt.length - 3) {
-			// FF FF X X ... 01 00 00 00 X X - Human
-			// FF FF X X ... 02 00 00 00 X X - Beast
-			if (pkt[p] == (byte) 0xFF && pkt[p + 1] == (byte) 0xFF
-					&& pkt[p + 2] == (byte) 0xFE && pkt[p + 3] == (byte) 0x1B) {
-				while (pkt[p] != 1 && pkt[p + 1] != 0 && pkt[p + 2] != 0
-						&& pkt[p + 3] != 0) {
-					++p;
-					if (p >= pkt.length - 3) { // fail
-						strongholdID = 0;
-						lairID = 0;
-						return;
-					}
-				}
-				p += 4;
-				bb.put(pkt[p]);
-				bb.put(pkt[p + 1]);
-				strongholdID = bb.getShort(0);
-				bb.rewind();
-			}
-			if (pkt[p] == (byte) 0xFF && pkt[p + 1] == (byte) 0xFF
-					&& pkt[p + 2] == (byte) 0xFF && pkt[p + 3] == (byte) 0x1B) {
-				while (pkt[p] != 2 && pkt[p + 1] != 0 && pkt[p + 2] != 0
-						&& pkt[p + 3] != 0) {
-					++p;
-					if (p >= pkt.length - 3) { // fail
-						strongholdID = 0;
-						lairID = 0;
-						return;
-					}
-				}
-				p += 4;
-				bb.put(pkt[p]);
-				bb.put(pkt[p + 1]);
-				lairID = bb.getShort(0);
-				bb.rewind();
-				return;
-			}
-			++p;
-		}
-	}
 
-	// didnt work due to multiple 0x00000001 etc.
-	public static void getStrongholdLairIDs1(byte[] pkt) {
-		// check magic
-		byte[] magic = { (byte) 0x9A, (byte) 0xDE, (byte) 0x97, (byte) 0xF1 };
-		for (int i = 0; i < 4; ++i)
-			if (pkt[i] != magic[i])
-				return;
-		// if(pkt[7] != 0x5D) return; // not packet we are looking for//wrong -
-		// this changes
-		int p = 0;
-		int prevp = 0;
-		int j = 0;
-		int idIndex = -1;
-		int iHuman = -1;
-		int iBeast = -1;
-		String team = "Team 1";
-		String race = "Human";
-		boolean doBefore = true;
-		ByteBuffer bb = ByteBuffer.allocate(2);
-		bb.order(ByteOrder.LITTLE_ENDIAN);
-		while (p < pkt.length) {
-			if (pkt[p] == 'T') {
-				prevp = p;
-				for (j = 1; j < team.length(); ++j) {
-					if (pkt[++p] != (byte) team.charAt(j))
-						break;
-				}
-				if (j < team.length()) {
-					p = prevp + 1;
-					continue;
-				}
-				System.out
-						.println("getStrongholdLairIDs(): found Team string: "
-								+ team);
-				++p; // skip null char
-				for (j = 0; j < race.length(); ++j) {
-					if (pkt[++p] != (byte) race.charAt(j))
-						break;
-				}
-				if (j < race.length()) {
-					p = prevp + 1;
-					continue;
-				}
-				System.out
-						.println("getStrongholdaLairIDs(): found Race string: "
-								+ race);
-				// found string
-				if (pkt.length <= 8)
-					return; // weird check but whatever
-				// now backtrack until we find 0x0000000(1|2); id is right
-				// after(now before :/) it
-				idIndex = prevp - 4;
-				byte b = race.contentEquals("Human") ? (byte) 1 : (byte) 2;
-				while (idIndex > 0
-						&& !(pkt[idIndex] == b && pkt[idIndex + 1] == 0
-								&& pkt[idIndex + 2] == 0 && pkt[idIndex + 3] == 0)) {
-					--idIndex;
-				}
-				idIndex -= 2;
-				// if(doBefore) idIndex -= 2;
-				// else idIndex += 4;
-				if (team.contentEquals("Team 1")) {
-					strongholdID = (short) ((short) (pkt[idIndex] & 0x00FF) | (short) (pkt[idIndex + 1]) << 8);
-					iHuman = idIndex;
-					bb.rewind();
-					bb.put(pkt[iHuman]);
-					bb.put(pkt[iHuman + 1]);
-					strongholdID = bb.getShort(0);
-					// now search for lair ID
-					team = "Team 2";
-					race = "Beast";
-					++p;
-				} else if (team.contentEquals("Team 2")) {
-					lairID = (short) ((short) (pkt[idIndex] & 0x00FF) | (short) (pkt[idIndex + 1]) << 8);
-					iBeast = idIndex;
-					bb.rewind();
-					bb.put(pkt[iBeast]);
-					bb.put(pkt[iBeast + 1]);
-					lairID = bb.getShort(0);
-					// seems like lairID = strongholdID - 1, use as check..
-					// ID seem to be sometimes before 0x0000001/2 sometimes
-					// after
-					if (Math.abs(lairID - strongholdID) != 1) {
-						// try the bytes after 0x1 and 0x2..
-						// try different combos of before/after
-						iHuman += 6;
-						iBeast += 6;
-						// strongholdID = (short) ((short)(pkt[iHuman] &
-						// (short)0x00FF) |
-						// (short)(pkt[iHuman + 1]) << 8);
-						bb.rewind();
-						bb.put(pkt[iHuman]);
-						bb.put(pkt[iHuman + 1]);
-						strongholdID = bb.getShort(0);
-
-						// lairID = (short) ((short)(pkt[iBeast] &
-						// (short)0x00FF) |
-						// (short)(pkt[iBeast + 1]) << 8);
-						bb.rewind();
-						bb.put(pkt[iBeast]);
-						bb.put(pkt[iBeast + 1]);
-						lairID = bb.getShort(0);
-
-						if (Math.abs(strongholdID - lairID) == 1)
-							return;
-
-						iHuman -= 6;
-						bb.rewind();
-						bb.put(pkt[iHuman]);
-						bb.put(pkt[iHuman + 1]);
-						strongholdID = bb.getShort(0);
-						if (Math.abs(strongholdID - lairID) == 1)
-							return;
-
-						iHuman += 6;
-						iBeast -= 6;
-						bb.rewind();
-						bb.put(pkt[iHuman]);
-						bb.put(pkt[iHuman + 1]);
-						strongholdID = bb.getShort(0);
-						bb.rewind();
-						bb.put(pkt[iBeast]);
-						bb.put(pkt[iBeast + 1]);
-						lairID = bb.getShort(0);
-						// if(Math.abs(strongholdID) - lairID) == 1) return;
-
-						System.out.println("Final check at iHuman=" + iHuman
-								+ " and iBeast=" + iBeast);
-						System.out.println("StrongholdID=" + strongholdID
-								+ " at index " + iHuman);
-						System.out.println("lairID=" + lairID + " at index "
-								+ iBeast);
-						if (Math.abs(lairID - strongholdID) != 1) { // fail
-							strongholdID = 0;
-							lairID = 0;
-						}
-						return;
-						// doBefore = false;
-						// p = 0;
-					} else { // we're done,reset vars for next use
-						team = "Team 1";
-						race = "Human";
-						doBefore = true;
-						p = 0;
-						break;
-					}
-				}
-			} else {
-				++p;
-			}
-		}
-	}
 
 	public static byte[] getStrongholdIDBytes() {
 		byte[] b = new byte[2];
@@ -985,13 +762,13 @@ public class Savage2GameServer {
 				(byte) (cmdC7counter2 >> 24),  
 				ability, userAction,
 				affectsHitDist2, dodge, (byte) 0xFF, 05,
-				0x38,
-				(byte)0x5D,
-				(byte)0x96,
-				(byte)0xBF,
+				0,//0x38,
+				0,//(byte)0x5D,
+				0,//(byte)0x96,
+				0,//(byte)0xBF,
 
-				(byte)0xC9,
-				(byte)0xC1,
+				0,//(byte)0xC9,
+				0,//(byte)0xC1,
 				orientation,//(byte) (testByte), // 0xA6 <-- this determines
 									// orientation/direction of movement
 				(byte) (0x43), // 0x43 //0x77,0x70,0x68,0x64,0x63,0x62 no spawn
@@ -2025,8 +1802,8 @@ contentLen apparently always 3 bytes extra (1 byte short) of being divisible by 
 			ori = (byte) ((byte)0x7F + angle * (0xB0 - 0x7F) / (Math.PI / 2));
 		else
 			ori = (byte) ((byte)0xD0 + angle * (0xB0 - 0x7F) / (Math.PI / 2));			
-		System.out.println("dX=" + dX);
-		System.out.println("dY=" + dY);
+		//System.out.println("dX=" + dX);
+		//System.out.println("dY=" + dY);
 		//System.out.println("Setting orientation to " + String.format("%02X", ori));
 		
 		setOrientationByte(ori);
@@ -2056,20 +1833,25 @@ contentLen apparently always 3 bytes extra (1 byte short) of being divisible by 
 	}
 	
 	
-	
-	
-
-	public static final int SERVER_IDLE_TIMEOUT = 1;
+	public static final int SVRMSG_IDLE_TIMEOUT = 1;
+	public static final int SVRMSG_OFFICER = 2;
 	public static int parseServerMessage(byte[] b, int len) {
-		if(len < 20) return 0;
+		if(len < 9) return 0;
 		if(b[4] != 3) return 0;
 		if(b[7] != 0x60 || b[8] != 6) return 0;
-		String timeout = "Server idle timeout reached";
-		String str = new String(b, 9, timeout.length());
-		if(str.contentEquals(timeout))
-			return SERVER_IDLE_TIMEOUT;
+		final String msgOfficer = "You have been promoted to the position of officer.";
+		final String msgTimeout = "Server idle timeout reached";
+		String msg = "";
+		for(int i = 9; i < len; ++i) {
+			msg += Character.toString((char)((byte)0x0FF & b[i]));
+		}
+		if(msg.contentEquals(msgOfficer)) {
+			return SVRMSG_OFFICER;
+		} else if(msg.contentEquals(msgTimeout)) {
+			return SVRMSG_IDLE_TIMEOUT;
+		}
 		return 0;
-	}
+	}	
 	
 	class AllChatMessage {
 		AllChatMessage() {}
@@ -2079,7 +1861,7 @@ contentLen apparently always 3 bytes extra (1 byte short) of being divisible by 
 	public static AllChatMessage parseAllChat(byte[] b, int bLen) {
 		if(bLen < 13) return null;
 		if(b[4] != 3 || b[7] != 0x60 || b[8] != 3) return null;
-		AllChatMessage res = (new Savage2GameServer()).new AllChatMessage();
+		AllChatMessage res = (new S2Factory()).new AllChatMessage();
 		res.playerid = Utility.getInt(b,  9);
 		res.msg = new String(b, 13, bLen - 1 - 13);
 		return res;
